@@ -1,3 +1,5 @@
+# Alunos: Pedro Henrique Santana Quintiliano 202120142; Raul Souza Lima 202010709
+
 # 📊 Trabalho de Grafos – Etapa 1: Pré-processamento de Dados
 
 Este projeto foi desenvolvido como parte da disciplina de **Teoria dos Grafos**, com foco na **Etapa 1**, que envolve o **pré-processamento dos dados**. O objetivo principal é representar o problema em estruturas de dados de grafos, realizar a leitura e estruturação do arquivo `.dat` e calcular métricas estatísticas com base nos caminhos mínimos entre todos os pares de vértices.
