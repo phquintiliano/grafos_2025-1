@@ -3,246 +3,242 @@ import os
 import time
 
 
-def find_values_in_blocks(bloco):
+def extract_values_from_block(block):
     pattern = r"\d+"
-    linhas = bloco.split("\n")[1:]
-    valores = []
-    for linha in linhas:
-        numeros = re.findall(pattern, linha)
-        valores.append([int(num) for num in numeros])
-    return valores
+    lines = block.split("\n")[1:]
+    values = []
+    for line in lines:
+        numbers = re.findall(pattern, line)
+        values.append([int(num) for num in numbers])
+    return values
 
 
-def separar_linha(blocos):
-    primeiro_bloco = blocos[0].split("\n")[1:]
-    bloco_sem_linha = "\n".join(primeiro_bloco)
-    return bloco_sem_linha
+def remove_first_line_from_blocks(blocks):
+    first_block = blocks[0].split("\n")[1:]
+    return "\n".join(first_block)
 
 
-def find_parameters(blocos):
+def extract_parameters(blocks):
     pattern = r"-?\d+"
-    integers = re.findall(pattern, blocos)
-    return integers
+    return re.findall(pattern, blocks)
 
 
-def find_intermediation(matrix, nodes):
-    intermediations = [0] * (int(nodes) + 1)
-    for i in range(len(matrix))[1:]:
-        for j in range(len(matrix[i]))[1:]:
-            if i != j and matrix[i][j] and matrix[i][j] != i:
-                intermediations[matrix[i][j]] += 1
-    return intermediations[1:]
+def compute_betweenness(predecessor_matrix, num_nodes):
+    betweenness = [0] * (int(num_nodes) + 1)
+    for i in range(1, len(predecessor_matrix)):
+        for j in range(1, len(predecessor_matrix[i])):
+            if i != j and predecessor_matrix[i][j] and predecessor_matrix[i][j] != i:
+                betweenness[predecessor_matrix[i][j]] += 1
+    return betweenness[1:]
 
 
-def find_degree(matrix, nodes):
-    degrees = [0] * (int(nodes) + 1)
+def compute_degree(distance_matrix, num_nodes):
+    degrees = [0] * (int(num_nodes) + 1)
     inf = float("inf")
-    for i in range(len(matrix)):
-        for j in range(len(matrix[i])):
-            if matrix[i][j] < inf and matrix[i][j] > 0:
+    for i in range(len(distance_matrix)):
+        for j in range(len(distance_matrix[i])):
+            if 0 < distance_matrix[i][j] < inf:
                 degrees[i] += 1
                 degrees[j] += 1
     return min(degrees[1:]), max(degrees)
 
 
-def find_medium_weight(matrix, nodes):
-    weight = 0
+def compute_avg_and_diameter(distance_matrix, num_nodes):
+    total_weight = 0
     inf = float("inf")
-    highest_weight = -1
-    for i in range(len(matrix)):
-        for j in range(len(matrix[i])):
-            if matrix[i][j] < inf and matrix[i][j] > 0:
-                weight += matrix[i][j]
-                highest_weight = max(highest_weight, matrix[i][j])
-    return weight / (int(nodes) * (int(nodes) - 1)), highest_weight
+    max_weight = -1
+    for i in range(len(distance_matrix)):
+        for j in range(len(distance_matrix[i])):
+            if 0 < distance_matrix[i][j] < inf:
+                total_weight += distance_matrix[i][j]
+                max_weight = max(max_weight, distance_matrix[i][j])
+    average = total_weight / (int(num_nodes) * (int(num_nodes) - 1))
+    return average, max_weight
 
 
-def bfs_component(adjacency_list, v, visited):
-    queue = [v]
-    visited[v] = True
+def bfs_connected_component(adj_list, vertex, visited):
+    queue = [vertex]
+    visited[vertex] = True
     while queue:
-        node = queue.pop()
-        for neighbor in adjacency_list[node]:
+        current = queue.pop()
+        for neighbor in adj_list[current]:
             if not visited[neighbor]:
                 visited[neighbor] = True
                 queue.append(neighbor)
 
 
-def find_components(arcs, nodes):
-    adjacency_list = {i: [] for i in range(int(nodes) + 1)}
+def count_connected_components(arcs, num_nodes):
+    adj_list = {i: [] for i in range(int(num_nodes) + 1)}
     for arc in arcs:
-        adjacency_list[arc[0]].append(arc[1])
-    visited = [False] * (int(nodes) + 1)
+        adj_list[arc[0]].append(arc[1])
+    visited = [False] * (int(num_nodes) + 1)
     components = 0
 
-    for v in range(int(nodes) + 1)[1:]:
+    for v in range(1, int(num_nodes) + 1):
         if not visited[v]:
             components += 1
-            bfs_component(adjacency_list, v, visited)
+            bfs_connected_component(adj_list, v, visited)
 
     return components
 
 
-def read_file(nome_arquivo):
-    with open("files\\" + nome_arquivo, "r") as arquivo:
-        conteudo = arquivo.read()
-    blocos = conteudo.strip().split("\n\n")
+def read_file(filename):
+    with open("files\\" + filename, "r") as file:
+        content = file.read()
+
+    blocks = content.strip().split("\n\n")
+
     [
         optimal_value,
-        vehicles,
+        vehicle_count,
         capacity,
-        depot_note,
-        nodes,
+        depot_node,
+        num_nodes,
         total_edges,
         total_arcs,
-        required_n,
-        required_e,
-        required_a,
-    ] = find_parameters(separar_linha(blocos))
-    required_ns = list(map(lambda linha: linha[0], find_values_in_blocks(blocos[1])))
-    values = []
-    for bloco in blocos[2:]:
-        linhas = find_values_in_blocks(bloco)
-        if len(linhas) > 0 and len(linhas[-1]) == 1:
-            linhas.pop()
-        values.append(
-            list(
-                map(
-                    lambda linha: [linha[1], linha[2], linha[3]],
-                    linhas,
-                )
-            )
-        )
-    [required_es, edges, required_as, arcs] = values
-    print("Sucesso! Os arquivos foram lidos.")
+        required_nodes,
+        required_edges,
+        required_arcs,
+    ] = extract_parameters(remove_first_line_from_blocks(blocks))
+
+    required_node_list = list(
+        map(lambda line: line[0], extract_values_from_block(blocks[1]))
+    )
+
+    data_blocks = []
+    for block in blocks[2:]:
+        lines = extract_values_from_block(block)
+        if lines and len(lines[-1]) == 1:
+            lines.pop()
+        data_blocks.append(list(map(lambda line: [line[1], line[2], line[3]], lines)))
+
+    [req_edges, edges, req_arcs, arcs] = data_blocks
+
+    print("Success! Files have been read.")
     return (
         optimal_value,
-        vehicles,
+        vehicle_count,
         capacity,
-        depot_note,
-        nodes,
+        depot_node,
+        num_nodes,
         total_edges,
         total_arcs,
-        required_n,
-        required_e,
-        required_a,
-        required_ns,
-        required_es,
+        required_nodes,
+        required_edges,
+        required_arcs,
+        required_node_list,
+        req_edges,
         edges,
-        required_as,
+        req_arcs,
         arcs,
     )
 
 
-def metrics(
-    nodes,
+def compute_metrics(
+    num_nodes,
     total_edges,
     total_arcs,
-    required_n,
-    required_e,
-    required_a,
-    required_es,
+    required_nodes,
+    required_edges,
+    required_arcs,
+    req_edges,
     edges,
-    required_as,
+    req_arcs,
     arcs,
 ):
-
-    all_edges = required_es + edges
-    arcs_from_edges = []
-    for edge in all_edges:
-        arcs_from_edges.append([edge[0], edge[1], edge[2]])
-        arcs_from_edges.append([edge[1], edge[0], edge[2]])
-    all_arcs = required_as + arcs + arcs_from_edges
+    all_edges = req_edges + edges
+    arcs_from_edges = [[e[0], e[1], e[2]] for e in all_edges] + [
+        [e[1], e[0], e[2]] for e in all_edges
+    ]
+    all_arcs = req_arcs + arcs + arcs_from_edges
 
     dist = {
-        u: {v: float("inf") for v in range(int(nodes) + 1)}
-        for u in range(int(nodes) + 1)
+        u: {v: float("inf") for v in range(int(num_nodes) + 1)}
+        for u in range(int(num_nodes) + 1)
     }
-
-    for u in range(int(nodes) + 1):
+    for u in range(int(num_nodes) + 1):
         dist[u][u] = 0
 
-    pred = {u: {} for u in range(int(nodes) + 1)}
+    pred = {u: {} for u in range(int(num_nodes) + 1)}
+    for src, dst, weight in all_arcs:
+        dist[src][dst] = weight
+        pred[src][dst] = src
 
-    for origem, destino, peso in all_arcs:
-        dist[origem][destino] = peso
-        pred[origem][destino] = origem
+    min_deg, max_deg = compute_degree(dist, num_nodes)
 
-    [lowest_degree, highest_degree] = find_degree(dist, nodes)
-
-    for k in range(int(nodes) + 1):
-        dist_k = dist[k]  # save recomputation
-        for i in range(int(nodes) + 1):
-            dist_i = dist[i]  # save recomputation
-            for j in range(int(nodes) + 1):
+    for k in range(int(num_nodes) + 1):
+        dist_k = dist[k]
+        for i in range(int(num_nodes) + 1):
+            dist_i = dist[i]
+            for j in range(int(num_nodes) + 1):
                 d = dist_i[k] + dist_k[j]
                 if dist_i[j] > d:
                     dist_i[j] = d
                     pred[i][j] = pred[k][j]
 
-    intermediations = find_intermediation(pred, nodes)
-    [medium_weight, highest_weight] = find_medium_weight(dist, nodes)
-    conected_components = find_components(all_arcs, nodes)
+    betweenness = compute_betweenness(pred, num_nodes)
+    avg_weight, diameter = compute_avg_and_diameter(dist, num_nodes)
+    components = count_connected_components(all_arcs, num_nodes)
     density = ((int(total_edges) * 2) + int(total_arcs)) / (
-        int(nodes) * (int(nodes) - 1)
+        int(num_nodes) * (int(num_nodes) - 1)
     )
 
     return {
-        "Quantidade de vértices": int(nodes),
-        "Quantidade de arestas": int(total_edges),
-        "Quantidade de arcos": int(total_arcs),
-        "Vértices requeridos": int(required_n),
-        "Arestas requeridas": int(required_e),
-        "Arcos requeridos": int(required_a),
-        "Densidade": round(density, 2),
-        "Componentes conectados": conected_components,
-        "Grau mínimo": lowest_degree,
-        "Grau máximo": highest_degree,
-        "Intermediação": intermediations,
-        "Caminho médio": round(medium_weight, 2),
-        "Diâmetro": highest_weight,
+        "Number of Nodes": int(num_nodes),
+        "Number of Edges": int(total_edges),
+        "Number of Arcs": int(total_arcs),
+        "Required Nodes": int(required_nodes),
+        "Required Edges": int(required_edges),
+        "Required Arcs": int(required_arcs),
+        "Graph Density": round(density, 2),
+        "Connected Components": components,
+        "Minimum Degree": min_deg,
+        "Maximum Degree": max_deg,
+        "Betweenness": betweenness,
+        "Average Path Length": round(avg_weight, 2),
+        "Diameter": diameter,
     }
 
 
 def main():
-    date = time.time()
-    pasta = "files"
-    arquivos = os.listdir(pasta)
-    print(arquivos)
+    start = time.time()
+    folder = "files"
+    files = os.listdir(folder)
+    print(files)
 
-    for arquivo in arquivos:
-        if arquivo.endswith(".dat"):
-            print(f"\n--- Processando arquivo: {arquivo} ---")
+    for file in files:
+        if file.endswith(".dat"):
+            print(f"\n--- Processing file: {file} ---")
             (
                 optimal_value,
-                vehicles,
+                vehicle_count,
                 capacity,
-                depot_note,
-                nodes,
+                depot_node,
+                num_nodes,
                 total_edges,
                 total_arcs,
-                required_n,
-                required_e,
-                required_a,
-                required_ns,
-                required_es,
+                required_nodes,
+                required_edges,
+                required_arcs,
+                required_node_list,
+                req_edges,
                 edges,
-                required_as,
+                req_arcs,
                 arcs,
-            ) = read_file(arquivo)
+            ) = read_file(file)
 
-            metrics(
-                nodes,
+            compute_metrics(
+                num_nodes,
                 total_edges,
                 total_arcs,
-                required_n,
-                required_e,
-                required_a,
-                required_es,
+                required_nodes,
+                required_edges,
+                required_arcs,
+                req_edges,
                 edges,
-                required_as,
+                req_arcs,
                 arcs,
             )
 
     end = time.time()
-    print(f"\nTempo total de execução: {(end - date):.2f} segundos")
+    print(f"\nTotal execution time: {(end - start):.2f} seconds")
