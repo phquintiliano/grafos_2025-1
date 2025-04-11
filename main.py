@@ -1,4 +1,6 @@
 import re
+import os
+import time
 
 
 def find_values_in_blocks(bloco):
@@ -185,16 +187,62 @@ def metrics(
         int(nodes) * (int(nodes) - 1)
     )
 
-    print("Quantidade de vertices:", nodes)
-    print("Quantidade de arestas: ", total_edges)
-    print("Quantidade de arcos: ", total_arcs)
-    print("Quantidade de vertices requeridos: ", required_n)
-    print("Quantidade de arestas requeridas: ", required_e)
-    print("Quantidade de arcos requeridas: ", required_a)
-    print("Densidade do grafo: ", density.__round__(2))
-    print("Componentes conectados: ", conected_components)
-    print("Grau minimo dos vertices: ", lowest_degree)
-    print("Grau maximo dos vertices: ", highest_degree)
-    print("Intermediacao: ", intermediations)
-    print("Caminho medio: ", medium_weight.__round__(2))
-    print("Diametro: ", highest_weight)
+    return {
+        "Quantidade de vértices": int(nodes),
+        "Quantidade de arestas": int(total_edges),
+        "Quantidade de arcos": int(total_arcs),
+        "Vértices requeridos": int(required_n),
+        "Arestas requeridas": int(required_e),
+        "Arcos requeridos": int(required_a),
+        "Densidade": round(density, 2),
+        "Componentes conectados": conected_components,
+        "Grau mínimo": lowest_degree,
+        "Grau máximo": highest_degree,
+        "Intermediação": intermediations,
+        "Caminho médio": round(medium_weight, 2),
+        "Diâmetro": highest_weight,
+    }
+
+
+def main():
+    date = time.time()
+    pasta = "files"
+    arquivos = os.listdir(pasta)
+    print(arquivos)
+
+    for arquivo in arquivos:
+        if arquivo.endswith(".dat"):
+            print(f"\n--- Processando arquivo: {arquivo} ---")
+            (
+                optimal_value,
+                vehicles,
+                capacity,
+                depot_note,
+                nodes,
+                total_edges,
+                total_arcs,
+                required_n,
+                required_e,
+                required_a,
+                required_ns,
+                required_es,
+                edges,
+                required_as,
+                arcs,
+            ) = read_file(arquivo)
+
+            metrics(
+                nodes,
+                total_edges,
+                total_arcs,
+                required_n,
+                required_e,
+                required_a,
+                required_es,
+                edges,
+                required_as,
+                arcs,
+            )
+
+    end = time.time()
+    print(f"\nTempo total de execução: {(end - date):.2f} segundos")
