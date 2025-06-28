@@ -252,14 +252,12 @@ def build_routes_by_affinity(services, dist, capacity, depot_node):
         current_demand = 0
 
         while True:
-            # Filtrar os serviços que cabem na rota
             candidates = [
                 s for s in unvisited if current_demand + s["demand"] <= capacity
             ]
             if not candidates:
                 break
 
-            # Escolher o mais próximo do último ponto da rota
             next_service = min(candidates, key=lambda s: dist[current][s["from"]])
             route.append(next_service)
             current_demand += next_service["demand"]
@@ -277,24 +275,89 @@ def greedy_algorithm(route, dist, depot_node):
     lowest_way = []
     current = depot_node
 
-    while len(route_copy) > 0:
-        next_service = None
-        next_distance = float("inf")
-
-        for service in route_copy:
-            distance = dist[current][service["from"]]
-            if distance < next_distance:
-                next_service = service
-                next_distance = distance
-
-        if next_service is None:
-            break
-
+    while route_copy:
+        next_service = min(route_copy, key=lambda s: dist[current][s["from"]])
         lowest_way.append(next_service)
         route_copy.remove(next_service)
         current = next_service["from"]
 
+    lowest_way = two_opt_route(lowest_way, dist, depot_node)
     return lowest_way
+
+
+def calculate_route_cost(route, dist, depot_node):
+    total_cost = 0
+    current = depot_node
+    for service in route:
+        total_cost += dist[current][service["from"]] + service["cost"]
+        current = service["to"]
+    total_cost += dist[current][depot_node]
+    return total_cost
+
+
+def route_demand(route):
+    return sum(service["demand"] for service in route)
+
+
+def apply_inter_route_swap(routes, dist, depot_node, capacity):
+    improved = True
+
+    while improved:
+        improved = False
+        for i in range(len(routes)):
+            for j in range(i + 1, len(routes)):
+                r1 = routes[i]
+                r2 = routes[j]
+                for idx1, s1 in enumerate(r1):
+                    for idx2, s2 in enumerate(r2):
+                        new_r1 = r1[:idx1] + [s2] + r1[idx1 + 1 :]
+                        new_r2 = r2[:idx2] + [s1] + r2[idx2 + 1 :]
+
+                        if (
+                            route_demand(new_r1) > capacity
+                            or route_demand(new_r2) > capacity
+                        ):
+                            continue
+
+                        old_cost = calculate_route_cost(
+                            r1, dist, depot_node
+                        ) + calculate_route_cost(r2, dist, depot_node)
+                        new_cost = calculate_route_cost(
+                            new_r1, dist, depot_node
+                        ) + calculate_route_cost(new_r2, dist, depot_node)
+
+                        if new_cost < old_cost:
+                            routes[i] = new_r1
+                            routes[j] = new_r2
+                            improved = True
+                            break
+                    if improved:
+                        break
+                if improved:
+                    break
+
+    return routes
+
+
+def two_opt_route(route, dist, depot_node):
+    best = route[:]
+    improved = True
+    best_cost = calculate_route_cost(best, dist, depot_node)
+
+    while improved:
+        improved = False
+        for i in range(1, len(best) - 1):
+            for j in range(i + 1, len(best)):
+                if i == j:
+                    continue
+                new_route = best[:i] + best[i : j + 1][::-1] + best[j + 1 :]
+                new_cost = calculate_route_cost(new_route, dist, depot_node)
+                if new_cost < best_cost:
+                    best = new_route
+                    best_cost = new_cost
+                    improved = True
+
+    return best
 
 
 def create_services(required_node_list, req_edges, req_arcs, dist, depot_node):
@@ -341,10 +404,12 @@ def create_services(required_node_list, req_edges, req_arcs, dist, depot_node):
     return services
 
 
-def find_lowest_ways(routes, dist, depot_node):
+def find_lowest_ways(routes, dist, depot_node, capacity):
     lowest_ways = []
     for route in routes:
         lowest_ways.append(greedy_algorithm(route, dist, depot_node))
+
+    lowest_ways = apply_inter_route_swap(lowest_ways, dist, depot_node, capacity)
 
     return lowest_ways
 
@@ -423,18 +488,17 @@ def save_file(
     with open(path, "w", encoding="utf-8") as file:
         file.write(string_to_save)
 
-    print("Arquivo salvo com sucesso em:", path)
+    return sum(distances)
 
 
 def main():
     start = time.time()
     folder = "files"
     files = os.listdir(folder)
-
+    new_distance = 0
     for file in files:
         if file.endswith(".dat"):
             start_all = time.perf_counter_ns()
-            print(f"\n--- Processing file: {file} ---")
             (
                 optimal_value,
                 vehicle_count,
@@ -461,12 +525,12 @@ def main():
                 required_node_list, req_edges, req_arcs, dist, depot_node
             )
             routes = build_routes_by_affinity(services, dist, capacity, depot_node)
-            lowest_ways = find_lowest_ways(routes, dist, depot_node)
+            lowest_ways = find_lowest_ways(routes, dist, depot_node, capacity)
             end_solution = time.perf_counter_ns()
 
             end_all = time.perf_counter_ns()
 
-            save_file(
+            distance = save_file(
                 file,
                 depot_node,
                 lowest_ways,
@@ -477,9 +541,12 @@ def main():
                 start_solution,
                 end_solution,
             )
-
-    end = time.time()
-    print(f"\nTotal execution time: {(end - start):.2f} seconds")
+            new_distance += distance
+    # perfect = 194_079
+    # current_value = 269_402
+    # with_2_opt = 253_622
+    # with_inter_route_opt = 243_332
+    # with_unlimited_2_opt = 240_828
 
 
 main()
